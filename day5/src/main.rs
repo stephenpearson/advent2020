@@ -25,7 +25,6 @@ fn seat_id(input: &str) -> (u16, u16, u16) {
 }
 fn main() {
     let mut max = 0;
-    let mut rowcount = HashMap::new();
     let mut seats = HashMap::new();
     if let Ok(lines) = read_lines("./input.txt") {
         for line in lines {
@@ -34,7 +33,6 @@ fn main() {
                 if id > max {
                     max = id;
                 }
-                *rowcount.entry(row).or_insert(0) += 1;
                 seats.entry(row).or_insert(Vec::<u16>::new());
                 if let Some(x) = seats.get_mut(&row) {
                     x.push(seat);
@@ -43,16 +41,12 @@ fn main() {
         }
     }
     println!("max = {}", max);
-    let mut row = 0;
-    for (r, c) in rowcount {
-        if c == 7 {
-            row = r;
-        }
-    }
-    if let Some(rowseats) = seats.get(&row) {
-        for s in 0..8 {
-            if rowseats.get(s).is_none() {
-                println!("missing seat = {}", row + s as u16);
+    for (r, rowseats) in seats {
+        if rowseats.len() == 7 {
+            for s in 0..8 {
+                if rowseats.get(s).is_none() {
+                    println!("missing seat = {}", r + s as u16);
+                }
             }
         }
     }
