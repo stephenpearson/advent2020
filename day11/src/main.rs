@@ -1,67 +1,96 @@
+use std::fmt;
 use std::fs::File;
 use std::io::{self, BufRead};
-use std::path::Path;
 
-fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
-where
-    P: AsRef<Path>,
-{
-    let file = File::open(filename)?;
-    Ok(io::BufReader::new(file).lines())
+struct SeatMap<'a> {
+    map: Vec<Vec<char>>,
+    rows: i32,
+    cols: i32,
+    countfn: &'a dyn Fn(&SeatMap, i32, i32) -> i32,
+    max: i32,
 }
 
-fn copy(map: &Vec<Vec<char>>) -> Vec<Vec<char>> {
-    let dim = (map.len(), map[0].len());
-    let mut newmap: Vec<Vec<char>> = Vec::new();
-    for i in 0..dim.0 {
-        let mut row: Vec<char> = Vec::new();
-        for j in 0..dim.1 {
-            row.push(map[i][j]);
+impl<'a> fmt::Display for SeatMap<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut result = String::new();
+        for i in 0..self.rows {
+            for j in 0..self.cols {
+                result += format!("{}", self.map[i as usize][j as usize]).as_str();
+            }
+            result += "\n";
         }
-        newmap.push(row);
+        write!(f, "{}", result)
     }
-    newmap
 }
 
-fn getcell(map: &Vec<Vec<char>>, row: i32, col: i32) -> char {
-    let dim = (map.len(), map[0].len());
-    if row < 0 || col < 0 || row >= dim.0 as i32 || col >= dim.1 as i32 {
-        return '.';
-    }
-    return map[row as usize][col as usize];
-}
-
-fn _print(map: &Vec<Vec<char>>) {
-    let dim = (map.len(), map[0].len());
-    for i in 0..dim.0 {
-        for j in 0..dim.1 {
-            print!("{}", map[i][j]);
+impl<'a> SeatMap<'a> {
+    fn new(
+        map: &Vec<Vec<char>>,
+        countfn: &'a dyn Fn(&SeatMap, i32, i32) -> i32,
+        max: i32,
+    ) -> SeatMap<'a> {
+        SeatMap::<'a> {
+            map: map.clone(),
+            rows: map.len() as i32,
+            cols: map[0].len() as i32,
+            countfn,
+            max,
         }
-        println!("");
     }
-}
 
-fn occupied(map: &Vec<Vec<char>>) -> i32 {
-    let dim = (map.len(), map[0].len());
-    let mut c = 0;
-    for i in 0..dim.0 {
-        for j in 0..dim.1 {
-            if map[i][j] == '#' {
-                c += 1;
+    fn getcell(&self, row: i32, col: i32) -> char {
+        if row < 0 || col < 0 || row >= self.rows || col >= self.cols {
+            return '.';
+        }
+        return self.map[row as usize][col as usize];
+    }
+
+    fn occupied(&self) -> i32 {
+        let mut c = 0;
+        for i in 0..self.rows {
+            for j in 0..self.cols {
+                if self.getcell(i, j) == '#' {
+                    c += 1;
+                }
             }
         }
+        c
     }
-    c
+
+    fn iterate(&mut self) -> i32 {
+        loop {
+            let mut newmap = self.map.clone();
+            let mut changed = false;
+            for i in 0..self.rows {
+                for j in 0..self.cols {
+                    let cur = self.getcell(i, j);
+                    let c = (self.countfn)(&self, i, j);
+                    if cur == 'L' && c == 0 {
+                        newmap[i as usize][j as usize] = '#';
+                        changed = true;
+                    } else if cur == '#' && c >= self.max {
+                        newmap[i as usize][j as usize] = 'L';
+                        changed = true;
+                    }
+                }
+            }
+            self.map = newmap;
+            if changed == false {
+                break;
+            }
+        }
+        self.occupied()
+    }
 }
 
-fn count1(map: &Vec<Vec<char>>, row: i32, col: i32) -> i32 {
+fn count1(map: &SeatMap, row: i32, col: i32) -> i32 {
     let mut c = 0;
     for i in -1..2 {
         for j in -1..2 {
             if i == 0 && j == 0 {
                 continue;
             }
-            let ch = getcell(&map, row + i, col + j);
+            let ch = map.getcell(row + i, col + j);
             if ch == '#' {
                 c += 1;
             }
@@ -70,8 +99,7 @@ fn count1(map: &Vec<Vec<char>>, row: i32, col: i32) -> i32 {
     c
 }
 
-fn count2(map: &Vec<Vec<char>>, row: i32, col: i32) -> i32 {
-    let dim = (map.len() as i32, map[0].len() as i32);
+fn count2(map: &SeatMap, row: i32, col: i32) -> i32 {
     let mut c = 0;
     for i in -1..2 {
         for j in -1..2 {
@@ -81,10 +109,10 @@ fn count2(map: &Vec<Vec<char>>, row: i32, col: i32) -> i32 {
             let mut cr = row + i;
             let mut cc = col + j;
             loop {
-                if cr >= dim.0 || cr < 0 || cc >= dim.1 || cc < 0 {
+                if cr >= map.rows || cr < 0 || cc >= map.cols || cc < 0 {
                     break;
                 }
-                let ch = getcell(&map, cr, cc);
+                let ch = map.getcell(cr, cc);
                 if ch == '#' {
                     c += 1;
                     break;
@@ -100,61 +128,19 @@ fn count2(map: &Vec<Vec<char>>, row: i32, col: i32) -> i32 {
     c
 }
 
-fn iterate(
-    map: &Vec<Vec<char>>,
-    countfn: &dyn Fn(&Vec<Vec<char>>, i32, i32) -> i32,
-    max: i32,
-) -> (bool, Vec<Vec<char>>) {
-    let dim = (map.len() as i32, map[0].len() as i32);
-    let mut newmap = copy(map);
-    let mut changed = false;
-    for i in 0..dim.0 {
-        for j in 0..dim.1 {
-            let cur = getcell(&map, i, j);
-            let c = countfn(&map, i, j);
-            if cur == 'L' && c == 0 {
-                newmap[i as usize][j as usize] = '#';
-                changed = true;
-            } else if cur == '#' && c >= max {
-                newmap[i as usize][j as usize] = 'L';
-                changed = true;
-            }
+fn main() -> std::io::Result<()> {
+    let mut layout: Vec<Vec<char>> = Vec::new();
+    let file = File::open("./input.txt")?;
+    for line in io::BufReader::new(file).lines() {
+        if let Ok(data) = line {
+            let cols: Vec<char> = data.chars().collect();
+            layout.push(cols);
         }
     }
+    let mut map1 = SeatMap::new(&layout, &count1, 4);
+    let mut map2 = SeatMap::new(&layout, &count2, 5);
 
-    (changed, newmap)
-}
-
-fn main() {
-    let mut map1: Vec<Vec<char>> = Vec::new();
-    if let Ok(lines) = read_lines("./input.txt") {
-        for line in lines {
-            if let Ok(data) = line {
-                let cols: Vec<char> = data.chars().collect();
-                map1.push(cols);
-            }
-        }
-    }
-    let mut map2 = copy(&map1);
-
-    loop {
-        let tmp = iterate(&map1, &count1, 4);
-        map1 = tmp.1;
-        if tmp.0 == false {
-            break;
-        }
-    }
-
-    println!("");
-    println!("occupied map1 = {}", occupied(&map1));
-
-    loop {
-        let tmp = iterate(&map2, &count2, 5);
-        map2 = tmp.1;
-        if tmp.0 == false {
-            break;
-        }
-    }
-
-    println!("occupied map2 = {}", occupied(&map2));
+    println!("occupied map1 = {}", map1.iterate());
+    println!("occupied map2 = {}", map2.iterate());
+    Ok(())
 }
