@@ -1,6 +1,7 @@
 use std::fmt;
 use std::fs::File;
 use std::io::{self, BufRead};
+use SeatStatus::*;
 
 #[derive(Copy, Clone, PartialEq)]
 enum SeatStatus {
@@ -12,9 +13,9 @@ enum SeatStatus {
 impl SeatStatus {
     fn as_str(&self) -> &'static str {
         match *self {
-            SeatStatus::Floor => ".",
-            SeatStatus::EmptySeat => "L",
-            SeatStatus::FullSeat => "#",
+            Floor => ".",
+            EmptySeat => "L",
+            FullSeat => "#",
         }
     }
 }
@@ -59,9 +60,9 @@ impl<'a> SeatMap<'a> {
         let mut result = Vec::new();
         for i in input {
             let v = match i {
-                '.' => Some(SeatStatus::Floor),
-                'L' => Some(SeatStatus::EmptySeat),
-                '#' => Some(SeatStatus::FullSeat),
+                '.' => Some(Floor),
+                'L' => Some(EmptySeat),
+                '#' => Some(FullSeat),
                 _ => None,
             };
             if let Some(x) = v {
@@ -73,7 +74,7 @@ impl<'a> SeatMap<'a> {
 
     fn getcell(&self, row: i32, col: i32) -> SeatStatus {
         if row < 0 || col < 0 || row >= self.rows || col >= self.cols {
-            return SeatStatus::EmptySeat;
+            return EmptySeat;
         }
         return self.map[row as usize][col as usize];
     }
@@ -82,7 +83,7 @@ impl<'a> SeatMap<'a> {
         let mut c = 0;
         for i in 0..self.rows {
             for j in 0..self.cols {
-                if self.getcell(i, j) == SeatStatus::FullSeat {
+                if self.getcell(i, j) == FullSeat {
                     c += 1;
                 }
             }
@@ -98,11 +99,11 @@ impl<'a> SeatMap<'a> {
                 for j in 0..self.cols {
                     let cur = self.getcell(i, j);
                     let c = (self.countfn)(&self, i, j);
-                    if cur == SeatStatus::EmptySeat && c == 0 {
-                        newmap[i as usize][j as usize] = SeatStatus::FullSeat;
+                    if cur == EmptySeat && c == 0 {
+                        newmap[i as usize][j as usize] = FullSeat;
                         changed = true;
-                    } else if cur == SeatStatus::FullSeat && c >= self.max {
-                        newmap[i as usize][j as usize] = SeatStatus::EmptySeat;
+                    } else if cur == FullSeat && c >= self.max {
+                        newmap[i as usize][j as usize] = EmptySeat;
                         changed = true;
                     }
                 }
@@ -124,7 +125,7 @@ fn count1(map: &SeatMap, row: i32, col: i32) -> i32 {
                 continue;
             }
             let ch = map.getcell(row + i, col + j);
-            if ch == SeatStatus::FullSeat {
+            if ch == FullSeat {
                 c += 1;
             }
         }
@@ -146,11 +147,11 @@ fn count2(map: &SeatMap, row: i32, col: i32) -> i32 {
                     break;
                 }
                 let ch = map.getcell(cr, cc);
-                if ch == SeatStatus::FullSeat {
+                if ch == FullSeat {
                     c += 1;
                     break;
                 }
-                if ch == SeatStatus::EmptySeat {
+                if ch == EmptySeat {
                     break;
                 }
                 cr += i;
