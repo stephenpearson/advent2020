@@ -2,8 +2,25 @@ use std::fmt;
 use std::fs::File;
 use std::io::{self, BufRead};
 
+#[derive(Copy, Clone, PartialEq)]
+enum SeatStatus {
+    Floor,
+    EmptySeat,
+    FullSeat,
+}
+
+impl SeatStatus {
+    fn as_str(&self) -> &'static str {
+        match *self {
+            SeatStatus::Floor => ".",
+            SeatStatus::EmptySeat => "L",
+            SeatStatus::FullSeat => "#",
+        }
+    }
+}
+
 struct SeatMap<'a> {
-    map: Vec<Vec<char>>,
+    map: Vec<Vec<SeatStatus>>,
     rows: i32,
     cols: i32,
     countfn: &'a dyn Fn(&SeatMap, i32, i32) -> i32,
@@ -15,17 +32,17 @@ impl<'a> fmt::Display for SeatMap<'a> {
         let mut result = String::new();
         for i in 0..self.rows {
             for j in 0..self.cols {
-                result += format!("{}", self.map[i as usize][j as usize]).as_str();
+                result += format!("{}", self.map[i as usize][j as usize].as_str()).as_str();
             }
             result += "\n";
         }
-        write!(f, "{}", result)
+        writeln!(f, "{}", result)
     }
 }
 
 impl<'a> SeatMap<'a> {
     fn new(
-        map: &Vec<Vec<char>>,
+        map: &Vec<Vec<SeatStatus>>,
         countfn: &'a dyn Fn(&SeatMap, i32, i32) -> i32,
         max: i32,
     ) -> SeatMap<'a> {
@@ -38,9 +55,25 @@ impl<'a> SeatMap<'a> {
         }
     }
 
-    fn getcell(&self, row: i32, col: i32) -> char {
+    fn parse_chars(input: Vec<char>) -> Vec<SeatStatus> {
+        let mut result = Vec::new();
+        for i in input {
+            let v = match i {
+                '.' => Some(SeatStatus::Floor),
+                'L' => Some(SeatStatus::EmptySeat),
+                '#' => Some(SeatStatus::FullSeat),
+                _ => None,
+            };
+            if let Some(x) = v {
+                result.push(x);
+            }
+        }
+        result
+    }
+
+    fn getcell(&self, row: i32, col: i32) -> SeatStatus {
         if row < 0 || col < 0 || row >= self.rows || col >= self.cols {
-            return '.';
+            return SeatStatus::EmptySeat;
         }
         return self.map[row as usize][col as usize];
     }
@@ -49,7 +82,7 @@ impl<'a> SeatMap<'a> {
         let mut c = 0;
         for i in 0..self.rows {
             for j in 0..self.cols {
-                if self.getcell(i, j) == '#' {
+                if self.getcell(i, j) == SeatStatus::FullSeat {
                     c += 1;
                 }
             }
@@ -65,11 +98,11 @@ impl<'a> SeatMap<'a> {
                 for j in 0..self.cols {
                     let cur = self.getcell(i, j);
                     let c = (self.countfn)(&self, i, j);
-                    if cur == 'L' && c == 0 {
-                        newmap[i as usize][j as usize] = '#';
+                    if cur == SeatStatus::EmptySeat && c == 0 {
+                        newmap[i as usize][j as usize] = SeatStatus::FullSeat;
                         changed = true;
-                    } else if cur == '#' && c >= self.max {
-                        newmap[i as usize][j as usize] = 'L';
+                    } else if cur == SeatStatus::FullSeat && c >= self.max {
+                        newmap[i as usize][j as usize] = SeatStatus::EmptySeat;
                         changed = true;
                     }
                 }
@@ -91,7 +124,7 @@ fn count1(map: &SeatMap, row: i32, col: i32) -> i32 {
                 continue;
             }
             let ch = map.getcell(row + i, col + j);
-            if ch == '#' {
+            if ch == SeatStatus::FullSeat {
                 c += 1;
             }
         }
@@ -113,11 +146,11 @@ fn count2(map: &SeatMap, row: i32, col: i32) -> i32 {
                     break;
                 }
                 let ch = map.getcell(cr, cc);
-                if ch == '#' {
+                if ch == SeatStatus::FullSeat {
                     c += 1;
                     break;
                 }
-                if ch == 'L' {
+                if ch == SeatStatus::EmptySeat {
                     break;
                 }
                 cr += i;
@@ -129,12 +162,12 @@ fn count2(map: &SeatMap, row: i32, col: i32) -> i32 {
 }
 
 fn main() -> std::io::Result<()> {
-    let mut layout: Vec<Vec<char>> = Vec::new();
+    let mut layout: Vec<Vec<SeatStatus>> = Vec::new();
     let file = File::open("./input.txt")?;
     for line in io::BufReader::new(file).lines() {
         if let Ok(data) = line {
             let cols: Vec<char> = data.chars().collect();
-            layout.push(cols);
+            layout.push(SeatMap::parse_chars(cols));
         }
     }
     let mut map1 = SeatMap::new(&layout, &count1, 4);
