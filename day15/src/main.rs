@@ -11,10 +11,8 @@ fn main() {
         } else {
             let l = last.entry(cur).or_insert((turn, turn));
             cur = (*l).0 - (*l).1;
-
             let tmp = last.entry(cur).or_insert((turn, turn));
-            (*tmp).1 = (*tmp).0;
-            (*tmp).0 = turn;
+            *tmp = (turn, (*tmp).0);
         }
     }
     println!("cur = {}", cur);
