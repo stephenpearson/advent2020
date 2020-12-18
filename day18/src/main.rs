@@ -51,15 +51,11 @@ fn parse(ch: &mut std::str::Chars) -> Option<i64> {
 }
 
 fn main() -> std::io::Result<()> {
-    let mut sum: i64 = 0;
     let file = File::open("./input.txt")?;
-    for line in io::BufReader::new(file).lines() {
-        if let Ok(data) = line {
-            let mut ch = data.chars();
-            let result = parse(&mut ch).unwrap();
-            sum += result;
-        }
-    }
+    let sum: i64 = io::BufReader::new(file)
+        .lines()
+        .map(|line| parse(&mut line.unwrap().chars()).unwrap())
+        .sum();
     println!("{}", sum);
     Ok(())
 }
