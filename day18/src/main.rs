@@ -54,7 +54,8 @@ fn main() -> std::io::Result<()> {
     let file = File::open("./input.txt")?;
     let sum: i64 = io::BufReader::new(file)
         .lines()
-        .map(|line| parse(&mut line.unwrap().chars()).unwrap())
+        .map(|line| parse(&mut line.unwrap().chars()))
+        .flatten()
         .sum();
     println!("{}", sum);
     Ok(())
